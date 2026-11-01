@@ -376,19 +376,55 @@ impl BigRat {
 		Ok(self.apply_uint_op(BigUint::factorial, int)?.into())
 	}
 
+	fn signed_integer(sign: Sign, num: BigUint) -> Self {
+		let sign = if num == 0.into() {
+			Sign::Positive
+		} else {
+			sign
+		};
+		Self {
+			sign,
+			num,
+			den: 1.into(),
+		}
+	}
+
+	fn trunc_magnitude<I: Interrupt>(&self, int: &I) -> FResult<(BigUint, bool)> {
+		let (quotient, remainder) = self.num.divmod(&self.den, int)?;
+		Ok((quotient, remainder != 0.into()))
+	}
+
 	pub(crate) fn floor<I: Interrupt>(self, int: &I) -> FResult<Self> {
-		let float = self.into_f64(int)?.floor();
-		Self::from_f64(float, int)
+		let (quotient, cut) = self.trunc_magnitude(int)?;
+		let away = cut && self.sign == Sign::Negative;
+		let num = if away {
+			quotient.add(&1.into())
+		} else {
+			quotient
+		};
+		Ok(Self::signed_integer(self.sign, num))
 	}
 
 	pub(crate) fn ceil<I: Interrupt>(self, int: &I) -> FResult<Self> {
-		let float = self.into_f64(int)?.ceil();
-		Self::from_f64(float, int)
+		let (quotient, cut) = self.trunc_magnitude(int)?;
+		let away = cut && self.sign == Sign::Positive;
+		let num = if away {
+			quotient.add(&1.into())
+		} else {
+			quotient
+		};
+		Ok(Self::signed_integer(self.sign, num))
 	}
 
 	pub(crate) fn round<I: Interrupt>(self, int: &I) -> FResult<Self> {
-		let float = self.into_f64(int)?.round();
-		Self::from_f64(float, int)
+		let twice_den = self.den.clone().mul(&2.into(), int)?;
+		let num = self
+			.num
+			.clone()
+			.mul(&2.into(), int)?
+			.add(&self.den)
+			.div(&twice_den, int)?;
+		Ok(Self::signed_integer(self.sign, num))
 	}
 
 	pub(crate) fn bitwise<I: Interrupt>(

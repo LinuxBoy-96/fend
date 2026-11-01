@@ -2711,6 +2711,21 @@ fn test_round() {
 
 	test_eval("round(-3.3)", "-3");
 	test_eval("round(-3.7)", "-4");
+
+	test_eval("round(2.5)", "3");
+	test_eval("round(-2.5)", "-3");
+	test_eval("round(-0.4)", "0");
+}
+
+#[test]
+fn floor_ceil_round_are_exact() {
+	test_eval("floor(10^30/7)", "142857142857142857142857142857");
+	test_eval("ceil(10^20 + 0.1)", "100000000000000000001");
+	test_eval("floor(12345678901234567890.5)", "12345678901234567890");
+	test_eval("floor(-12345678901234567890.5)", "-12345678901234567891");
+	test_eval("round(1152921504606846976.5)", "1152921504606846977");
+	test_eval("floor(2^100 + 1/2) - 2^100", "0");
+	test_eval("ceil(-1/3)", "0");
 }
 
 #[test]
