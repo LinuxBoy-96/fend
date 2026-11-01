@@ -586,14 +586,12 @@ impl BigUint {
 			let mut remainder = ((u128::from(dividend_high) << 64) | u128::from(dividend_low))
 				.wrapping_sub(u128::from(quotient_estimate) * u128::from(divisor_msb));
 
-			while u128::from(divisor_second) * u128::from(quotient_estimate)
-				> (remainder << 64) | u128::from(dividend_third)
+			while remainder <= u128::from(u64::MAX)
+				&& u128::from(divisor_second) * u128::from(quotient_estimate)
+					> (remainder << 64) | u128::from(dividend_third)
 			{
 				quotient_estimate -= 1;
-				remainder = remainder.wrapping_add(u128::from(divisor_msb));
-				if remainder > u128::from(u64::MAX) {
-					break;
-				}
+				remainder += u128::from(divisor_msb);
 			}
 
 			// Multiply and subtract: dividend[offset..] -= quotient_estimate * divisor
@@ -1629,6 +1627,22 @@ mod tests {
 		for _ in 0..100 {
 			n.lshift(int)?;
 			assert_eq!(n.get(0) & 1, 0);
+		}
+		Ok(())
+	}
+
+	#[test]
+	fn division_with_a_quotient_digit_of_all_ones() -> Res {
+		let int = &crate::interrupt::Never;
+		let ten_40 = BigUint::pow(&10.into(), &40.into(), int)?;
+		for shift in [64, 128, 200, 450] {
+			let dividend = ten_40
+				.clone()
+				.sub(&1.into())
+				.lshift_n(&BigUint::from(shift), int)?;
+			let (quotient, remainder) = dividend.divmod(&ten_40, int)?;
+			assert!(remainder < ten_40);
+			assert_eq!(quotient.mul(&ten_40, int)?.add(&remainder), dividend);
 		}
 		Ok(())
 	}

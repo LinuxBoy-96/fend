@@ -2728,6 +2728,14 @@ fn rounding_up_at_a_zero_digit() {
 }
 
 #[test]
+fn long_division_with_a_quotient_digit_of_all_ones() {
+	test_eval(
+		"floor((10^40 - 1) * 2^200 / 10^40)",
+		"1606938044258990275541962092341162602522042299978366936273821",
+	);
+}
+
+#[test]
 fn floor_ceil_round_are_exact() {
 	test_eval("floor(10^30/7)", "142857142857142857142857142857");
 	test_eval("ceil(10^20 + 0.1)", "100000000000000000001");
