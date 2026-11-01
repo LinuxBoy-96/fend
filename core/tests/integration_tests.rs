@@ -5923,6 +5923,9 @@ fn superscript_exponents_after_any_value() {
 	test_eval("(2 m)²", "4 m^2");
 	test_eval("a = 3; a²", "9");
 	test_eval("2²!", "24");
+	test_eval("2⁻¹'", "0.5'");
+	test_eval("sin⁻¹ 0.5", "approx. 0.5235987756");
+	test_eval("cosh⁻¹ 2", "approx. 1.3169578969");
 	expect_error("2⁻", Some("unexpected character '⁻'"));
 }
 
@@ -5943,6 +5946,8 @@ fn unicode_square_root() {
 	test_eval("√2·3", "approx. 4.2426406871");
 	test_eval("1/√2", "approx. 0.7071067812");
 	test_eval("√0.25", "0.5");
+	test_eval("10 % √4", "0");
+	test_eval("sqrt = \\y.y+1; √4", "2");
 }
 
 #[test]

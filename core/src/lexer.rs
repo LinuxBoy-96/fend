@@ -11,7 +11,7 @@ pub(crate) enum Token {
 	Num(Number),
 	Ident(Ident),
 	Symbol(Symbol),
-	Superscript(Number),
+	Superscript(bool, Number),
 	StringLiteral(borrow::Cow<'static, str>),
 	Date(Date),
 }
@@ -480,7 +480,7 @@ fn parse_superscript<'a, I: Interrupt>(
 	input: &'a str,
 	decimal_separator: DecimalSeparatorStyle,
 	int: &I,
-) -> FResult<(Number, &'a str)> {
+) -> FResult<(Token, &'a str)> {
 	let (negative, input) = match input.strip_prefix(SUPERSCRIPT_MINUS) {
 		Some(remaining) => (true, remaining),
 		None => (false, input),
@@ -490,7 +490,7 @@ fn parse_superscript<'a, I: Interrupt>(
 		return Err(FendError::UnexpectedChar(SUPERSCRIPT_MINUS));
 	}
 	let value = superscript_value(digits, Base::default(), decimal_separator, int)?;
-	Ok((if negative { -value } else { value }, remaining))
+	Ok((Token::Superscript(negative, value), remaining))
 }
 
 fn parse_number<'a, I: Interrupt>(
@@ -897,10 +897,10 @@ impl<I: Interrupt> Lexer<'_, '_, I> {
 					self.input = remaining;
 					Token::StringLiteral(literal.to_string().into())
 				} else if ch == SUPERSCRIPT_MINUS || SUPERSCRIPT_DIGITS.contains(&ch) {
-					let (exponent, remaining) =
+					let (token, remaining) =
 						parse_superscript(self.input, self.decimal_separator, self.int)?;
 					self.input = remaining;
-					Token::Superscript(exponent)
+					token
 				} else if is_valid_in_ident(ch, None) {
 					// dots aren't allowed in idents after a backslash
 					let (ident, remaining) =
@@ -929,7 +929,9 @@ impl<I: Interrupt> Iterator for Lexer<'_, '_, I> {
 		};
 		self.after_number_or_to = matches!(
 			res,
-			Some(Ok(Token::Num(_) | Token::Symbol(Symbol::UnitConversion)))
+			Some(Ok(Token::Num(_)
+				| Token::Superscript(..)
+				| Token::Symbol(Symbol::UnitConversion)))
 		);
 		if matches!(res, Some(Ok(Token::Symbol(Symbol::Backslash)))) {
 			self.after_backslash_state = 1;
