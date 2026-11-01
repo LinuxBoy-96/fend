@@ -1816,7 +1816,7 @@ fn e_to_1() {
 #[test]
 fn e_in_binary() {
 	// FIXME: trailing zeroes
-	test_eval_simple("e in binary", "approx. 10.1011100000");
+	test_eval("e in binary", "approx. 10.10111");
 }
 
 #[test]
@@ -1999,7 +1999,7 @@ fn exponents_28() {
 
 #[test]
 fn exponents_29() {
-	test_eval_simple("e^2.72", "approx. 15.1803222450");
+	test_eval("e^2.72", "approx. 15.180322245");
 }
 
 #[test]
@@ -2220,7 +2220,7 @@ fn units_13() {
 #[test]
 fn units_14() {
 	// FIXME: trailing zeroes
-	test_eval_simple("5 pi/2", "approx. 7.8539816340");
+	test_eval("5 pi/2", "approx. 7.853981634");
 }
 
 #[test]
@@ -3319,7 +3319,7 @@ fn log10_1000() {
 
 #[test]
 fn log10_10000() {
-	test_eval_simple("log10 10000", "approx. 4.0000000000");
+	test_eval("log10 10000", "approx. 4");
 }
 
 #[test]
@@ -3339,7 +3339,7 @@ fn log_1000() {
 
 #[test]
 fn log_10000() {
-	test_eval_simple("log 10000", "approx. 4.0000000000");
+	test_eval("log 10000", "approx. 4");
 }
 
 #[test]
@@ -3449,19 +3449,17 @@ fn sqrt_i() {
 
 #[test]
 fn sqrt_minus_two_i() {
-	// FIXME: no trailing zeroes
-	test_eval_simple("sqrt (-2i)", "approx. 1.0000000000 - 1.0000000000i");
+	test_eval_simple("sqrt (-2i)", "approx. 1 - 1i");
 }
 
 #[test]
 fn cbrt_i() {
-	// FIXME: no trailing zeroes
-	test_eval_simple("cbrt i", "approx. 0.8660254038 + 0.5000000000i");
+	test_eval("cbrt i", "approx. 0.8660254038 + 0.5i");
 }
 
 #[test]
 fn cbrt_minus_two_i() {
-	test_eval_simple("cbrt (-2i)", "approx. 1.0911236360 - 0.6299605249i");
+	test_eval("cbrt (-2i)", "approx. 1.091123636 - 0.6299605249i");
 }
 
 #[test]
@@ -3476,7 +3474,7 @@ fn cos_i() {
 
 #[test]
 fn tan_i() {
-	test_eval_simple("tan i", "approx. 0.7615941560i");
+	test_eval("tan i", "approx. 0.761594156i");
 }
 
 #[test]
@@ -6127,7 +6125,7 @@ fn european_formatting() {
 		fend_core::evaluate("sin(1,2)", &mut ctx)
 			.unwrap()
 			.get_main_result(),
-		"approx. 0,9320390860"
+		"approx. 0,932039086"
 	);
 }
 

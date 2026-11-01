@@ -949,31 +949,8 @@ impl BigRat {
 						sign
 					};
 					if round_up {
-						let mut chars: Vec<char> = trailing_digits.chars().collect();
-						let mut carry = true;
-						for i in (0..chars.len()).rev() {
-							let c = chars[i];
-							if c == decimal_separator.decimal_separator() {
-								continue;
-							}
-							if let Some(d) = c.to_digit(base.base_as_u8().into()) {
-								if d + 1 < base.base_as_u8().into() {
-									chars[i] =
-										char::from_digit(d + 1, base.base_as_u8().into()).unwrap();
-									carry = false;
-									break;
-								}
-								chars[i] = '0';
-							} else {
-								chars.insert(i + 1, '1');
-								carry = false;
-								break;
-							}
-						}
-						if carry {
-							chars.insert(0, '1');
-						}
-						trailing_digits = chars.into_iter().collect();
+						trailing_digits =
+							Self::round_up_digits(&trailing_digits, base, decimal_separator);
 					}
 					// is the number exact, or did we need to truncate?
 					let exact = current_numerator == 0.into();
@@ -984,6 +961,45 @@ impl BigRat {
 				}
 			}
 		}
+	}
+
+	fn round_up_digits(
+		digits: &str,
+		base: Base,
+		decimal_separator: DecimalSeparatorStyle,
+	) -> String {
+		let mut chars: Vec<char> = digits.chars().collect();
+		let mut carry = true;
+		for i in (0..chars.len()).rev() {
+			let c = chars[i];
+			if c == decimal_separator.decimal_separator() {
+				continue;
+			}
+			if let Some(d) = c.to_digit(base.base_as_u8().into()) {
+				if d + 1 < base.base_as_u8().into() {
+					chars[i] = char::from_digit(d + 1, base.base_as_u8().into()).unwrap();
+					carry = false;
+					break;
+				}
+				chars[i] = '0';
+			} else {
+				chars.insert(i + 1, '1');
+				carry = false;
+				break;
+			}
+		}
+		if carry {
+			chars.insert(0, '1');
+		}
+		if chars.contains(&decimal_separator.decimal_separator()) {
+			while chars.last() == Some(&'0') {
+				chars.pop();
+			}
+			if chars.last() == Some(&decimal_separator.decimal_separator()) {
+				chars.pop();
+			}
+		}
+		chars.into_iter().collect()
 	}
 
 	// Brent's cycle detection algorithm (based on pseudocode from Wikipedia)
