@@ -6282,3 +6282,65 @@ fn exp_ln_and_hyperbolic_functions_are_precise() {
 	);
 	expect_error("exp(10^9)", Some("value is too large"));
 }
+
+#[test]
+fn trigonometric_functions_are_precise() {
+	test_eval_simple(
+		"pi to 60 dp",
+		"approx. 3.141592653589793238462643383279502884197169399375105820974945",
+	);
+	test_eval_simple(
+		"atan(1) * 4 to 60 dp",
+		"approx. 3.141592653589793238462643383279502884197169399375105820974945",
+	);
+	test_eval_simple(
+		"sin 1 to 50 dp",
+		"approx. 0.84147098480789650665250232163029899962256306079837",
+	);
+	test_eval_simple(
+		"cos 1 to 50 dp",
+		"approx. 0.54030230586813971740093660744297660373231042061792",
+	);
+	test_eval_simple(
+		"tan 1 to 50 dp",
+		"approx. 1.55740772465490223050697480745836017308725077238152",
+	);
+	test_eval_simple(
+		"sin 355 to 50 dp",
+		"approx. -0.00003014435335948844921433028000865009959025580707",
+	);
+	test_eval_simple(
+		"sin(10^20) to 50 dp",
+		"approx. -0.6452512852657808442058117113125230074069041966869",
+	);
+	test_eval_simple(
+		"cos(10^30) to 40 dp",
+		"approx. -0.9959311944053957023942485879970486411302",
+	);
+	test_eval_simple(
+		"tan 1.5707963267 to 30 dp",
+		"approx. 10537783201.342317198145256648590305010736",
+	);
+	test_eval("1/sin(10^-20)", "approx. 100000000000000000000");
+	test_eval("(sin 1)^2 + (cos 1)^2", "approx. 1");
+	test_eval_simple(
+		"asin 0.999999 to 50 dp",
+		"approx. 1.56938211311467236746824989586709579363455866391913",
+	);
+	test_eval_simple(
+		"acos(1 - 10^-20) to 50 dp",
+		"approx. 0.0000000001414213562373095048802867235511675657777",
+	);
+	test_eval_simple(
+		"atan(10^20) to 50 dp",
+		"approx. 1.57079632679489661922132169163975144209858469968755",
+	);
+	test_eval_simple(
+		"e^pi to 50 dp",
+		"approx. 23.14069263277926900572908636794854738026610624260021",
+	);
+	test_eval_simple(
+		"2^pi to 50 dp",
+		"approx. 8.82497782707628762385642960420800158170441081527148",
+	);
+}

@@ -11,6 +11,20 @@ const MAX_EXPONENT: u64 = 1 << 24;
 
 const CONST_BITS: u64 = 512;
 
+const PI: [u64; 9] = [
+	0x3f84_d5b5_b547_0917,
+	0xc0ac_29b7_c97c_50dd,
+	0xbe54_66cf_34e9_0c6c,
+	0x4528_21e6_38d0_1377,
+	0x082e_fa98_ec4e_6c89,
+	0xa409_3822_299f_31d0,
+	0x1319_8a2e_0370_7344,
+	0x243f_6a88_85a3_08d3,
+	0x0000_0000_0000_0003,
+];
+
+const MAX_TRIG_SIZE: u64 = 1 << 16;
+
 const LN_2: [u64; 8] = [
 	0x2757_3b29_1169_b825,
 	0xed2e_ae35_c138_2144,
@@ -88,6 +102,11 @@ impl Fixed {
 		Ok(Self::new(self.neg != other.neg, mag))
 	}
 
+	fn div<I: Interrupt>(&self, other: &Self, bits: u64, int: &I) -> FResult<Self> {
+		let mag = shl(self.mag.clone(), bits).div(&other.mag, int)?;
+		Ok(Self::new(self.neg != other.neg, mag))
+	}
+
 	fn mul_int<I: Interrupt>(&self, n: u64, int: &I) -> FResult<Self> {
 		Ok(Self::new(self.neg, self.mag.clone().mul(&n.into(), int)?))
 	}
@@ -121,6 +140,40 @@ fn ln_2<I: Interrupt>(bits: u64, int: &I) -> FResult<Fixed> {
 	let third = BigRat::from(1).div(&3.into(), int)?;
 	let half = atanh_small(&third, bits + 8, int)?;
 	Fixed::from_rat(&half.mul(&2.into(), int)?, bits, int)
+}
+
+fn atan_inv<I: Interrupt>(n: u64, bits: u64, int: &I) -> FResult<Fixed> {
+	let mut power = Fixed::one(bits).div_int(n, int)?;
+	let mut sum = power.clone();
+	for k in 1..=u64::MAX {
+		test_int(int)?;
+		power = power.div_int(n * n, int)?;
+		let term = power.div_int(2 * k + 1, int)?;
+		if term.is_zero() {
+			break;
+		}
+		sum = if k % 2 == 1 {
+			sum.sub(&term)
+		} else {
+			sum.add(&term)
+		};
+	}
+	Ok(sum)
+}
+
+fn pi<I: Interrupt>(bits: u64, int: &I) -> FResult<Fixed> {
+	if bits <= CONST_BITS {
+		let constant = BigUint::Large(PI.to_vec());
+		return Ok(Fixed::new(false, shr(constant, CONST_BITS - bits)));
+	}
+	let work = bits + 16;
+	let a = atan_inv(5, work, int)?.mul_int(16, int)?;
+	let b = atan_inv(239, work, int)?.mul_int(4, int)?;
+	Ok(a.sub(&b).over_pow2(16))
+}
+
+pub(super) fn pi_rat<I: Interrupt>(int: &I) -> FResult<BigRat> {
+	Ok(pi(WORK_BITS, int)?.into_rat(WORK_BITS))
 }
 
 fn scale_pow2(mut x: BigRat, k: i64) -> BigRat {
@@ -400,6 +453,183 @@ pub(super) fn atanh<I: Interrupt>(x: &BigRat, int: &I) -> FResult<BigRat> {
 	ln(&ratio, int)?.div(&2.into(), int)
 }
 
+fn sqrt_fixed<I: Interrupt>(v: &Fixed, bits: u64, int: &I) -> FResult<Fixed> {
+	let root = shl(v.mag.clone(), bits).root_n(&2.into(), int)?.value;
+	Ok(Fixed::new(false, root))
+}
+
+fn reduce_half_pi<I: Interrupt>(x: &BigRat, int: &I) -> FResult<(BigRat, u64)> {
+	let size = log2_estimate(x);
+	if size < -1.0 {
+		return Ok((x.clone(), 0));
+	}
+	let size = exponent(size)?.unsigned_abs();
+	if size > MAX_TRIG_SIZE {
+		return Err(FendError::ValueTooLarge);
+	}
+	let mut extra = size + 32;
+	loop {
+		let bits = WORK_BITS + extra;
+		let half_pi = pi(bits, int)?.over_pow2(1);
+		let xf = Fixed::from_rat(x, bits, int)?;
+		let k = xf
+			.mag
+			.clone()
+			.mul(&2.into(), int)?
+			.add(&half_pi.mag)
+			.div(&half_pi.mag.clone().mul(&2.into(), int)?, int)?;
+		let multiple = Fixed::new(xf.neg, half_pi.mag.mul(&k, int)?);
+		let r = xf.clone().sub(&multiple);
+		let lost = (WORK_BITS + 16).saturating_sub(r.mag.bits());
+		if lost == 0 || extra > size + MAX_TRIG_SIZE {
+			let q = k.divmod(&4.into(), int)?.1.try_as_usize(int)? as u64;
+			let q = if xf.neg { (4 - q) % 4 } else { q };
+			return Ok((r.into_rat(bits), q));
+		}
+		extra += lost;
+	}
+}
+
+fn sin_cos_series<I: Interrupt>(r2: &Fixed, bits: u64, int: &I) -> FResult<(Fixed, Fixed)> {
+	let mut sinc = Fixed::one(bits);
+	let mut cos = Fixed::one(bits);
+	let mut term = Fixed::one(bits);
+	for k in 1..=u64::MAX {
+		test_int(int)?;
+		term = term
+			.mul(r2, bits, int)?
+			.div_int((2 * k - 1) * (2 * k), int)?;
+		if term.is_zero() {
+			break;
+		}
+		let sin_term = term.div_int(2 * k + 1, int)?;
+		if k % 2 == 1 {
+			cos = cos.sub(&term);
+			sinc = sinc.sub(&sin_term);
+		} else {
+			cos = cos.add(&term);
+			sinc = sinc.add(&sin_term);
+		}
+	}
+	Ok((sinc, cos))
+}
+
+fn sin_cos<I: Interrupt>(x: &BigRat, int: &I) -> FResult<(BigRat, BigRat)> {
+	let (r, q) = reduce_half_pi(x, int)?;
+	let r2 = Fixed::from_rat(&r.clone().mul(&r, int)?, WORK_BITS, int)?;
+	let (sinc, cos) = sin_cos_series(&r2, WORK_BITS, int)?;
+	let sin = times(&r, &sinc, WORK_BITS, int)?;
+	let cos = cos.into_rat(WORK_BITS);
+	Ok(match q {
+		0 => (sin, cos),
+		1 => (cos, -sin),
+		2 => (-sin, -cos),
+		_ => (-cos, sin),
+	})
+}
+
+pub(super) fn sin<I: Interrupt>(x: &BigRat, int: &I) -> FResult<BigRat> {
+	Ok(sin_cos(x, int)?.0)
+}
+
+pub(super) fn cos<I: Interrupt>(x: &BigRat, int: &I) -> FResult<BigRat> {
+	Ok(sin_cos(x, int)?.1)
+}
+
+fn atan_series<I: Interrupt>(t: &BigRat, int: &I) -> FResult<BigRat> {
+	let bits = WORK_BITS;
+	let t2 = Fixed::from_rat(&t.clone().mul(t, int)?, bits, int)?;
+	let mut sum = Fixed::one(bits);
+	let mut power = Fixed::one(bits);
+	for k in 1..=u64::MAX {
+		test_int(int)?;
+		power = power.mul(&t2, bits, int)?;
+		let term = power.div_int(2 * k + 1, int)?;
+		if term.is_zero() {
+			break;
+		}
+		sum = if k % 2 == 1 {
+			sum.sub(&term)
+		} else {
+			sum.add(&term)
+		};
+	}
+	times(t, &sum, bits, int)
+}
+
+fn atan_unit<I: Interrupt>(a: &BigRat, int: &I) -> FResult<BigRat> {
+	if a.num.clone().mul(&8.into(), int)? <= a.den {
+		return atan_series(a, int);
+	}
+	let bits = WORK_BITS + 8;
+	let one = Fixed::one(bits);
+	let eighth = one.clone().over_pow2(3);
+	let mut t = Fixed::from_rat(a, bits, int)?;
+	let mut halvings = 0;
+	while t.mag > eighth.mag {
+		test_int(int)?;
+		let root = sqrt_fixed(&one.clone().add(&t.mul(&t, bits, int)?), bits, int)?;
+		t = t.div(&one.clone().add(&root), bits, int)?;
+		halvings += 1;
+	}
+	Ok(scale_pow2(atan_series(&t.into_rat(bits), int)?, halvings))
+}
+
+pub(super) fn atan<I: Interrupt>(x: &BigRat, int: &I) -> FResult<BigRat> {
+	if x.num.is_zero() {
+		return Ok(0.into());
+	}
+	let t = if x.num > x.den {
+		let inverse = BigRat {
+			sign: Sign::Positive,
+			num: x.den.clone(),
+			den: x.num.clone(),
+		};
+		pi_rat(int)?
+			.div(&2.into(), int)?
+			.add(-atan_unit(&inverse, int)?, int)?
+	} else {
+		atan_unit(&abs(x), int)?
+	};
+	Ok(if is_negative(x) { -t } else { t })
+}
+
+pub(super) fn asin<I: Interrupt>(x: &BigRat, int: &I) -> FResult<BigRat> {
+	if x.num.is_zero() {
+		return Ok(0.into());
+	}
+	let one = BigRat::from(1);
+	let rest = one.add(-x.clone().mul(x, int)?, int)?;
+	if rest.num.is_zero() {
+		let half_pi = pi_rat(int)?.div(&2.into(), int)?;
+		return Ok(if is_negative(x) { -half_pi } else { half_pi });
+	}
+	atan(&x.clone().div(&sqrt(&rest, int)?, int)?, int)
+}
+
+pub(super) fn acos<I: Interrupt>(x: &BigRat, int: &I) -> FResult<BigRat> {
+	let one = BigRat::from(1);
+	let above = one.clone().add(x.clone(), int)?;
+	if above.num.is_zero() {
+		return pi_rat(int);
+	}
+	let ratio = one.add(-x.clone(), int)?.div(&above, int)?;
+	atan(&sqrt(&ratio, int)?, int)?.mul(&2.into(), int)
+}
+
+pub(super) fn atan2<I: Interrupt>(y: &BigRat, x: &BigRat, int: &I) -> FResult<BigRat> {
+	let base = atan(&y.clone().div(x, int)?, int)?;
+	if !is_negative(x) {
+		return Ok(base);
+	}
+	let pi = pi_rat(int)?;
+	if is_negative(y) {
+		base.add(-pi, int)
+	} else {
+		base.add(pi, int)
+	}
+}
+
 pub(super) fn ln_2_rat<I: Interrupt>(int: &I) -> FResult<BigRat> {
 	Ok(ln_2(WORK_BITS, int)?.into_rat(WORK_BITS))
 }
@@ -407,6 +637,19 @@ pub(super) fn ln_2_rat<I: Interrupt>(int: &I) -> FResult<BigRat> {
 #[cfg(test)]
 mod tests {
 	use super::*;
+
+	#[test]
+	fn pi_constant_matches_machin() {
+		let int = &crate::interrupt::Never;
+		let series = pi(CONST_BITS + 64, int).unwrap().over_pow2(64);
+		let constant = pi(CONST_BITS, int).unwrap();
+		let diff = if series.mag >= constant.mag {
+			series.mag.sub(&constant.mag)
+		} else {
+			constant.mag.sub(&series.mag)
+		};
+		assert!(diff <= 2.into());
+	}
 
 	#[test]
 	fn ln_2_constant_matches_its_series() {

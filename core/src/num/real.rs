@@ -90,18 +90,7 @@ impl Real {
 	fn approximate<I: Interrupt>(self, int: &I) -> FResult<BigRat> {
 		match self.pattern {
 			Pattern::Simple(s) => Ok(s),
-			Pattern::Pi(n) => {
-				// This fraction is the 33th convergent of pi, (in the sense of continued fraction),
-				// and as such, is a "best approximation of the second kind" of pi (see e.g. the
-				// book of Khinchin about continued fractions).
-				// The 33th convergent is the last one with both numerators and denominators
-				// fitting in a u64-container.
-				// The difference between this approximation and pi is less than 10^-37.
-				let num = BigRat::from(2_646_693_125_139_304_345);
-				let den = BigRat::from(842_468_587_426_513_207);
-				let pi = num.div(&den, int)?;
-				Ok(n.mul(&pi, int)?)
-			}
+			Pattern::Pi(n) => Ok(n.mul(&BigRat::pi(int)?, int)?),
 		}
 	}
 
@@ -262,7 +251,7 @@ impl Real {
 			});
 		}
 		Ok(Self::from(
-			self.approximate(int)?.atan2(rhs.approximate(int)?, int)?,
+			self.approximate(int)?.atan2(&rhs.approximate(int)?, int)?,
 		))
 	}
 

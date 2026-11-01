@@ -223,37 +223,12 @@ impl BigRat {
 		}
 	}
 
-	#[allow(
-		clippy::cast_possible_truncation,
-		clippy::cast_sign_loss,
-		clippy::cast_precision_loss
-	)]
-	pub(crate) fn from_f64<I: Interrupt>(mut f: f64, int: &I) -> FResult<Self> {
-		let negative = f < 0.0;
-		if negative {
-			f = -f;
-		}
-		let i = (f * u64::MAX as f64) as u128;
-		let part1 = i as u64;
-		let part2 = (i >> 64) as u64;
-		Ok(Self {
-			sign: if negative {
-				Sign::Negative
-			} else {
-				Sign::Positive
-			},
-			num: BigUint::from(part1)
-				.add(&BigUint::from(part2).mul(&BigUint::from(u64::MAX), int)?),
-			den: BigUint::from(u64::MAX),
-		})
-	}
-
 	// sin works for all real numbers
 	pub(crate) fn sin<I: Interrupt>(self, int: &I) -> FResult<Exact<Self>> {
 		Ok(if self == 0.into() {
 			Exact::new(Self::from(0), true)
 		} else {
-			Exact::new(Self::from_f64(f64::sin(self.into_f64(int)?), int)?, false)
+			Exact::new(fixed::sin(&self, int)?, false)
 		})
 	}
 
@@ -262,8 +237,12 @@ impl BigRat {
 		Ok(if self == 0.into() {
 			Exact::new(Self::from(1), true)
 		} else {
-			Exact::new(Self::from_f64(f64::cos(self.into_f64(int)?), int)?, false)
+			Exact::new(fixed::cos(&self, int)?, false)
 		})
+	}
+
+	pub(crate) fn pi<I: Interrupt>(int: &I) -> FResult<Self> {
+		fixed::pi_rat(int)
 	}
 
 	// asin, acos and atan only work for values between -1 and 1
@@ -272,7 +251,7 @@ impl BigRat {
 		if self > one || self < -one {
 			return Err(out_of_range(self.fm(int)?, Range::open(-1, 1)));
 		}
-		Self::from_f64(f64::asin(self.into_f64(int)?), int)
+		fixed::asin(&self, int)
 	}
 
 	pub(crate) fn acos<I: Interrupt>(self, int: &I) -> FResult<Self> {
@@ -280,16 +259,16 @@ impl BigRat {
 		if self > one || self < -one {
 			return Err(out_of_range(self.fm(int)?, Range::open(-1, 1)));
 		}
-		Self::from_f64(f64::acos(self.into_f64(int)?), int)
+		fixed::acos(&self, int)
 	}
 
 	// note that this works for any real number, unlike asin and acos
 	pub(crate) fn atan<I: Interrupt>(self, int: &I) -> FResult<Self> {
-		Self::from_f64(f64::atan(self.into_f64(int)?), int)
+		fixed::atan(&self, int)
 	}
 
-	pub(crate) fn atan2<I: Interrupt>(self, rhs: Self, int: &I) -> FResult<Self> {
-		Self::from_f64(f64::atan2(self.into_f64(int)?, rhs.into_f64(int)?), int)
+	pub(crate) fn atan2<I: Interrupt>(self, rhs: &Self, int: &I) -> FResult<Self> {
+		fixed::atan2(&self, rhs, int)
 	}
 
 	pub(crate) fn sinh<I: Interrupt>(self, int: &I) -> FResult<Self> {
