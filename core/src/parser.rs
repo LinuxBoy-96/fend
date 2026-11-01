@@ -1,4 +1,5 @@
 use crate::ast::{Bop, Expr};
+use crate::ident::Ident;
 use crate::lexer::{Symbol, Token};
 use crate::value::Value;
 use std::fmt;
@@ -139,18 +140,34 @@ fn parse_parens_or_literal(input: &[Token]) -> ParseResult<'_> {
 		Token::StringLiteral(s) => Ok((Expr::Literal(Value::String(s)), remaining)),
 		Token::Symbol(Symbol::OpenParens) => parse_parens(input),
 		Token::Symbol(Symbol::Backslash) => parse_backslash_lambda(input),
+		Token::Symbol(Symbol::Sqrt) => {
+			let (arg, remaining) = parse_power(remaining, true)?;
+			let sqrt = Expr::Ident(Ident::new_str("sqrt"));
+			Ok((
+				Expr::ApplyFunctionCall(Box::new(sqrt), Box::new(arg)),
+				remaining,
+			))
+		}
 		Token::Symbol(s) => Err(ParseError::UnexpectedSymbol(s)),
 		Token::Date(d) => Ok((Expr::Literal(Value::Date(d)), remaining)),
+		Token::Superscript(_) => Err(ParseError::UnexpectedInput),
 	}
 }
 
 fn parse_factorial(input: &[Token]) -> ParseResult<'_> {
 	let (mut res, mut input) = parse_parens_or_literal(input)?;
-	while let Ok(((), remaining)) = parse_fixed_symbol(input, Symbol::Factorial) {
-		res = Expr::Factorial(Box::new(res));
-		input = remaining;
+	loop {
+		if let Ok(((), remaining)) = parse_fixed_symbol(input, Symbol::Factorial) {
+			res = Expr::Factorial(Box::new(res));
+			input = remaining;
+		} else if let Some((Token::Superscript(exponent), remaining)) = input.split_first() {
+			let exponent = Expr::Literal(Value::Num(Box::new(exponent.clone())));
+			res = Expr::Bop(Bop::Pow, Box::new(res), Box::new(exponent));
+			input = remaining;
+		} else {
+			return Ok((res, input));
+		}
 	}
-	Ok((res, input))
 }
 
 fn parse_power(input: &[Token], allow_unary: bool) -> ParseResult<'_> {
