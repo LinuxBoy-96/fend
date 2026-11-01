@@ -877,11 +877,11 @@ fn resolve_builtin_identifier<I: Interrupt>(
 
 fn derived_function(ident: &str) -> Option<&'static str> {
 	Some(match ident {
-		"cot" => "x: cos x / sin x",
-		"csc" => "x: 1 / sin x",
-		"coth" => "x: cosh x / sinh x",
-		"sech" => "x: 1 / cosh x",
-		"csch" => "x: 1 / sinh x",
+		"cot" => "x: (cos x) / (sin x)",
+		"csc" => "x: 1 / (sin x)",
+		"coth" => "x: 1 / (tanh x)",
+		"sech" => "x: 1 / (cosh x)",
+		"csch" => "x: 1 / (sinh x)",
 		"acsc" => "x: asin(1/x)",
 		"acoth" => "x: atanh(1/x)",
 		"asech" => "x: acosh(1/x)",

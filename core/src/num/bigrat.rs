@@ -435,6 +435,9 @@ impl BigRat {
 		if x.sign == Sign::Negative || x.num.is_zero() {
 			return Err(FendError::DivideByZero);
 		}
+		if x.num.bits() > 20 {
+			return Err(FendError::ValueTooLarge);
+		}
 		let factorial = x.add(-Self::from(1), int)?.factorial(int)?;
 		Ok(Exact::new(factorial, true))
 	}

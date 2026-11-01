@@ -6364,7 +6364,10 @@ fn reciprocal_trigonometric_functions() {
 	test_eval("acoth 2", "approx. 0.5493061443");
 	test_eval("asech 0.5", "approx. 1.3169578969");
 	test_eval("acsch 1", "approx. 0.881373587");
+	test_eval("coth(-1000000)", "approx. -1");
+	test_eval("sech 1000", "approx. 0");
 	expect_error("cot 0", Some("division by zero"));
+	expect_error("coth 0", Some("division by zero"));
 }
 
 #[test]
@@ -6403,6 +6406,7 @@ fn gamma_function() {
 	expect_error("gamma(-3)", Some("division by zero"));
 	expect_error("gamma i", Some("expected a real number"));
 	expect_error("gamma(10^6 + 0.5)", Some("value is too large"));
+	expect_error("gamma(10^20)", Some("value is too large"));
 }
 
 #[test]

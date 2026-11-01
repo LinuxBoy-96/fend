@@ -385,12 +385,22 @@ fn sinh_small<I: Interrupt>(x: &BigRat, int: &I) -> FResult<BigRat> {
 	times(x, &sum, bits, int)
 }
 
+fn exp_dominates(x: &BigRat) -> bool {
+	#[allow(clippy::cast_precision_loss)]
+	let bits = (WORK_BITS + 8) as f64;
+	f64_estimate(x) > bits
+}
+
 pub(super) fn sinh<I: Interrupt>(x: &BigRat, int: &I) -> FResult<BigRat> {
 	if x.num.is_zero() {
 		return Ok(0.into());
 	}
 	if is_small(x, int)? {
 		return sinh_small(x, int);
+	}
+	if exp_dominates(x) {
+		let half = scale_pow2(exp(&abs(x), int)?, -1);
+		return Ok(if is_negative(x) { -half } else { half });
 	}
 	let e = exp(x, int)?;
 	let inverse = BigRat::from(1).div(&e, int)?;
@@ -400,6 +410,9 @@ pub(super) fn sinh<I: Interrupt>(x: &BigRat, int: &I) -> FResult<BigRat> {
 pub(super) fn cosh<I: Interrupt>(x: &BigRat, int: &I) -> FResult<BigRat> {
 	if x.num.is_zero() {
 		return Ok(1.into());
+	}
+	if exp_dominates(x) {
+		return Ok(scale_pow2(exp(&abs(x), int)?, -1));
 	}
 	let e = exp(x, int)?;
 	let inverse = BigRat::from(1).div(&e, int)?;
@@ -413,9 +426,7 @@ pub(super) fn tanh<I: Interrupt>(x: &BigRat, int: &I) -> FResult<BigRat> {
 	if is_small(x, int)? {
 		return sinh_small(x, int)?.div(&cosh(x, int)?, int);
 	}
-	#[allow(clippy::cast_precision_loss)]
-	let negligible = f64_estimate(x) > (WORK_BITS + 8) as f64;
-	let t = if negligible {
+	let t = if exp_dominates(x) {
 		BigRat::from(1)
 	} else {
 		let e = exp(&abs(x).mul(&2.into(), int)?, int)?;
