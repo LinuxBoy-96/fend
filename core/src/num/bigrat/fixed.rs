@@ -5,6 +5,10 @@ use crate::interrupt::test_int;
 use crate::num::biguint::BigUint;
 use crate::result::FResult;
 
+mod special;
+
+pub(super) use special::{gamma, zeta};
+
 pub(super) const WORK_BITS: u64 = super::ROOT_BITS + 32;
 
 const MAX_EXPONENT: u64 = 1 << 24;
@@ -328,13 +332,17 @@ pub(super) fn ln<I: Interrupt>(x: &BigRat, int: &I) -> FResult<BigRat> {
 	ln_bits(x, WORK_BITS, int)
 }
 
-pub(super) fn pow<I: Interrupt>(base: &BigRat, exponent: &BigRat, int: &I) -> FResult<BigRat> {
+fn pow_bits<I: Interrupt>(base: &BigRat, exponent: &BigRat, bits: u64, int: &I) -> FResult<BigRat> {
 	let size = log2_estimate(exponent) + log2_estimate(base).abs().max(1.0).log2();
 	let extra = self::exponent(size.max(0.0))?.unsigned_abs() + 2;
 	let t = exponent
 		.clone()
-		.mul(&ln_bits(base, WORK_BITS + extra, int)?, int)?;
-	exp(&t, int)
+		.mul(&ln_bits(base, bits + extra, int)?, int)?;
+	exp_bits(&t, bits, int)
+}
+
+pub(super) fn pow<I: Interrupt>(base: &BigRat, exponent: &BigRat, int: &I) -> FResult<BigRat> {
+	pow_bits(base, exponent, WORK_BITS, int)
 }
 
 pub(super) fn sqrt<I: Interrupt>(x: &BigRat, int: &I) -> FResult<BigRat> {

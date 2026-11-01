@@ -233,6 +233,16 @@ impl Real {
 		Ok(Self::from(self.approximate(int)?.atan(int)?))
 	}
 
+	pub(crate) fn acot<I: Interrupt>(self, int: &I) -> FResult<Self> {
+		if self.is_zero() {
+			return Ok(Self {
+				pattern: Pattern::Pi(BigRat::from(1).div(&2.into(), int)?),
+			});
+		}
+		let inverse = BigRat::from(1).div(&self.approximate(int)?, int)?;
+		Ok(Self::from(inverse.atan(int)?))
+	}
+
 	pub(crate) fn atan2<I: Interrupt>(self, rhs: Self, int: &I) -> FResult<Self> {
 		let half_turns = if rhs.is_zero() {
 			match (self.is_pos(), self.is_neg()) {
@@ -306,6 +316,18 @@ impl Real {
 
 	pub(crate) fn round<I: Interrupt>(self, int: &I) -> FResult<Self> {
 		Ok(Self::from(self.approximate(int)?.round(int)?))
+	}
+
+	pub(crate) fn trunc<I: Interrupt>(self, int: &I) -> FResult<Self> {
+		Ok(Self::from(self.approximate(int)?.trunc(int)?))
+	}
+
+	pub(crate) fn gamma<I: Interrupt>(self, int: &I) -> FResult<Exact<Self>> {
+		Ok(self.approximate(int)?.gamma(int)?.apply(Self::from))
+	}
+
+	pub(crate) fn zeta<I: Interrupt>(self, int: &I) -> FResult<Exact<Self>> {
+		Ok(self.approximate(int)?.zeta(int)?.apply(Self::from))
 	}
 
 	pub(crate) fn format<I: Interrupt>(

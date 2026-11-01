@@ -422,6 +422,31 @@ impl BigRat {
 		Ok(Self::signed_integer(self.sign, num))
 	}
 
+	pub(crate) fn trunc<I: Interrupt>(self, int: &I) -> FResult<Self> {
+		let (quotient, _) = self.trunc_magnitude(int)?;
+		Ok(Self::signed_integer(self.sign, quotient))
+	}
+
+	pub(crate) fn gamma<I: Interrupt>(self, int: &I) -> FResult<Exact<Self>> {
+		let x = self.simplify(int)?;
+		if !x.is_integer() {
+			return Ok(Exact::new(fixed::gamma(&x, int)?, false));
+		}
+		if x.sign == Sign::Negative || x.num.is_zero() {
+			return Err(FendError::DivideByZero);
+		}
+		let factorial = x.add(-Self::from(1), int)?.factorial(int)?;
+		Ok(Exact::new(factorial, true))
+	}
+
+	pub(crate) fn zeta<I: Interrupt>(self, int: &I) -> FResult<Exact<Self>> {
+		let s = self.simplify(int)?;
+		if s == 1.into() {
+			return Err(FendError::DivideByZero);
+		}
+		fixed::zeta(&s, int)
+	}
+
 	pub(crate) fn round<I: Interrupt>(self, int: &I) -> FResult<Self> {
 		let twice_den = self.den.clone().mul(&2.into(), int)?;
 		let num = self

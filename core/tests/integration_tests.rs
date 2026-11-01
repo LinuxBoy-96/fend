@@ -6344,3 +6344,96 @@ fn trigonometric_functions_are_precise() {
 		"approx. 8.82497782707628762385642960420800158170441081527148",
 	);
 }
+
+#[test]
+fn reciprocal_trigonometric_functions() {
+	test_eval("cot 1", "approx. 0.6420926159");
+	test_eval("cot(45°)", "approx. 1");
+	test_eval("csc 1", "approx. 1.1883951058");
+	test_eval("coth 1", "approx. 1.3130352855");
+	test_eval("sech 1", "approx. 0.6480542737");
+	test_eval("csch 1", "approx. 0.8509181282");
+	test_eval("acot 2", "approx. 0.463647609");
+	test_eval("acot(-1)", "approx. -0.7853981634");
+	test_eval("acot 0", "approx. 1.5707963268");
+	test_eval_simple(
+		"acot(10^-20) to 50 dp",
+		"approx. 1.57079632679489661922132169163975144209858469968755",
+	);
+	test_eval("acsc 2", "approx. 0.5235987756");
+	test_eval("acoth 2", "approx. 0.5493061443");
+	test_eval("asech 0.5", "approx. 1.3169578969");
+	test_eval("acsch 1", "approx. 0.881373587");
+	expect_error("cot 0", Some("division by zero"));
+}
+
+#[test]
+fn trunc_rounds_toward_zero() {
+	test_eval("trunc(-2.7)", "-2");
+	test_eval("trunc 2.7", "2");
+	test_eval("trunc(-2.5 kg)", "-2 kg");
+	test_eval("trunc(10^30/7)", "142857142857142857142857142857");
+	expect_error("trunc i", Some("expected a real number"));
+}
+
+#[test]
+fn gamma_function() {
+	test_eval("gamma 1", "1");
+	test_eval("gamma 5", "24");
+	test_eval("gamma 0.5", "approx. 1.7724538509");
+	test_eval("(gamma 0.5)^2", "approx. 3.1415926536");
+	test_eval("gamma(-2.5)", "approx. -0.9453087205");
+	test_eval_simple(
+		"gamma(1/3) to 50 dp",
+		"approx. 2.6789385347077476336556929409746776441286893779573",
+	);
+	test_eval_simple(
+		"gamma(pi) to 50 dp",
+		"approx. 2.28803779534003241795958890906023392288968815335622",
+	);
+	test_eval(
+		"gamma(10^-30)",
+		"approx. 999999999999999999999999999999.4227843351",
+	);
+	test_eval(
+		"gamma(-3 + 10^-30)",
+		"approx. -166666666666666666666666666666.8760196114",
+	);
+	expect_error("gamma 0", Some("division by zero"));
+	expect_error("gamma(-3)", Some("division by zero"));
+	expect_error("gamma i", Some("expected a real number"));
+	expect_error("gamma(10^6 + 0.5)", Some("value is too large"));
+}
+
+#[test]
+fn zeta_function() {
+	test_eval_simple(
+		"zeta 2 to 50 dp",
+		"approx. 1.6449340668482264364724151666460251892189499012068",
+	);
+	test_eval_simple(
+		"zeta 3 to 50 dp",
+		"approx. 1.2020569031595942853997381615114499907649862923405",
+	);
+	test_eval_simple(
+		"zeta 0.5 to 50 dp",
+		"approx. -1.46035450880958681288949915251529801246722933101258",
+	);
+	test_eval_simple(
+		"zeta(1 + 10^-30) to 50 dp",
+		"approx. 1000000000000000000000000000000.57721566490153286060651209008247524691798984687542",
+	);
+	test_eval_simple(
+		"zeta(-2.5) to 50 dp",
+		"approx. 0.00851692877785033054235856702834448693627599022007",
+	);
+	test_eval("zeta 0", "-0.5");
+	test_eval("zeta(-2)", "0");
+	test_eval_simple("zeta(-1) to fraction", "-1/12");
+	test_eval_simple(
+		"zeta(-57) to fraction",
+		"-2913228046513104891794716413587449/708",
+	);
+	test_eval("zeta 1000", "approx. 1");
+	expect_error("zeta 1", Some("division by zero"));
+}
