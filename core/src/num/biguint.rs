@@ -40,11 +40,11 @@ const fn truncate(n: u128) -> u64 {
 impl BigUint {
 	pub(crate) fn bits(&self) -> u64 {
 		match self {
-			Small(n) => u64::from(n.ilog2()) + 1,
+			Small(n) => u64::from(n.bit_width()),
 			Large(value) => {
 				for (i, v) in value.iter().enumerate().rev() {
 					if *v != 0 {
-						let bits_in_v = u64::from(v.ilog2()) + 1;
+						let bits_in_v = u64::from(v.bit_width());
 						let bits_in_rest = u64::try_from(i).unwrap() * u64::from(u64::BITS);
 						return bits_in_v + bits_in_rest;
 					}
@@ -1646,6 +1646,13 @@ mod tests {
 			assert_eq!(quotient.mul(&ten_40, int)?.add(&remainder), dividend);
 		}
 		Ok(())
+	}
+
+	#[test]
+	fn bits() {
+		assert_eq!(BigUint::from(0).bits(), 0);
+		assert_eq!(BigUint::from(1).bits(), 1);
+		assert_eq!(BigUint::Large(vec![0, 1, 0]).bits(), 65);
 	}
 
 	#[test]
