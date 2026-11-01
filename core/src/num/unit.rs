@@ -823,6 +823,10 @@ impl Value {
 		self.apply_fn_exact(Complex::ln, true, context.decimal_separator, int)
 	}
 
+	pub(crate) fn exp<I: Interrupt>(self, context: &mut crate::Context, int: &I) -> FResult<Self> {
+		self.apply_fn_exact(Complex::exp, true, context.decimal_separator, int)
+	}
+
 	pub(crate) fn log2<I: Interrupt>(self, context: &mut crate::Context, int: &I) -> FResult<Self> {
 		self.apply_fn(Complex::log2, true, context.decimal_separator, int)
 	}

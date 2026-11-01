@@ -357,6 +357,7 @@ impl Value {
 			BuiltInFunction::Ln => arg.expect_num()?.ln(context, int)?,
 			BuiltInFunction::Log2 => arg.expect_num()?.log2(context, int)?,
 			BuiltInFunction::Log10 => arg.expect_num()?.log10(context, int)?,
+			BuiltInFunction::Exp => arg.expect_num()?.exp(context, int)?,
 			BuiltInFunction::Base => {
 				let n: u8 = arg
 					.expect_num()?

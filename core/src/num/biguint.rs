@@ -38,7 +38,7 @@ const fn truncate(n: u128) -> u64 {
 }
 
 impl BigUint {
-	fn bits(&self) -> u64 {
+	pub(crate) fn bits(&self) -> u64 {
 		match self {
 			Small(n) => u64::from(n.ilog2()) + 1,
 			Large(value) => {
@@ -54,7 +54,7 @@ impl BigUint {
 		}
 	}
 
-	fn is_zero(&self) -> bool {
+	pub(crate) fn is_zero(&self) -> bool {
 		match self {
 			Small(n) => *n == 0,
 			Large(value) => {
@@ -345,7 +345,7 @@ impl BigUint {
 		self.div_rem_knuth(other, int)
 	}
 
-	fn rshift_u64(&mut self, n: u64) {
+	pub(crate) fn rshift_u64(&mut self, n: u64) {
 		if n == 0 {
 			return;
 		}
@@ -392,7 +392,7 @@ impl BigUint {
 		}
 	}
 
-	fn lshift_u64(&mut self, n: u64) {
+	pub(crate) fn lshift_u64(&mut self, n: u64) {
 		if n == 0 {
 			return;
 		}

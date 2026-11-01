@@ -9,6 +9,8 @@ use crate::serialize::CborValue;
 use core::f64;
 use std::{cmp, fmt, hash, ops};
 
+mod fixed;
+
 const ROOT_BITS: u64 = 192;
 
 pub(crate) mod sign {
@@ -291,19 +293,19 @@ impl BigRat {
 	}
 
 	pub(crate) fn sinh<I: Interrupt>(self, int: &I) -> FResult<Self> {
-		Self::from_f64(f64::sinh(self.into_f64(int)?), int)
+		fixed::sinh(&self, int)
 	}
 
 	pub(crate) fn cosh<I: Interrupt>(self, int: &I) -> FResult<Self> {
-		Self::from_f64(f64::cosh(self.into_f64(int)?), int)
+		fixed::cosh(&self, int)
 	}
 
 	pub(crate) fn tanh<I: Interrupt>(self, int: &I) -> FResult<Self> {
-		Self::from_f64(f64::tanh(self.into_f64(int)?), int)
+		fixed::tanh(&self, int)
 	}
 
 	pub(crate) fn asinh<I: Interrupt>(self, int: &I) -> FResult<Self> {
-		Self::from_f64(f64::asinh(self.into_f64(int)?), int)
+		fixed::asinh(&self, int)
 	}
 
 	// value must not be less than 1
@@ -317,7 +319,7 @@ impl BigRat {
 				},
 			));
 		}
-		Self::from_f64(f64::acosh(self.into_f64(int)?), int)
+		fixed::acosh(&self, int)
 	}
 
 	// value must be between -1 and 1.
@@ -326,10 +328,10 @@ impl BigRat {
 		if self >= one || self <= -one {
 			return Err(out_of_range(self.fm(int)?, Range::open(-1, 1)));
 		}
-		Self::from_f64(f64::atanh(self.into_f64(int)?), int)
+		fixed::atanh(&self, int)
 	}
 
-	pub(crate) fn log2<I: Interrupt>(self, int: &I) -> FResult<Self> {
+	fn expect_positive<I: Interrupt>(self, int: &I) -> FResult<Self> {
 		if self <= 0.into() {
 			return Err(out_of_range(
 				self.fm(int)?,
@@ -339,23 +341,46 @@ impl BigRat {
 				},
 			));
 		}
-		Self::from_f64(self.num.log2() - self.den.log2(), int)
+		self.simplify(int)
+	}
+
+	fn exact_log<I: Interrupt>(&self, base: u64, int: &I) -> FResult<Option<Self>> {
+		let (power, sign) = if self.den == 1.into() {
+			(&self.num, Sign::Positive)
+		} else if self.num == 1.into() {
+			(&self.den, Sign::Negative)
+		} else {
+			return Ok(None);
+		};
+		#[allow(clippy::cast_precision_loss)]
+		let estimate = (power.log2() / (base as f64).log2()).round();
+		#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+		let k = BigUint::from(estimate as u64);
+		Ok((&BigUint::pow(&base.into(), &k, int)? == power).then(|| Self::signed_integer(sign, k)))
+	}
+
+	pub(crate) fn log2<I: Interrupt>(self, int: &I) -> FResult<Self> {
+		let x = self.expect_positive(int)?;
+		if let Some(k) = x.exact_log(2, int)? {
+			return Ok(k);
+		}
+		fixed::ln(&x, int)?.div(&fixed::ln_2_rat(int)?, int)
 	}
 
 	pub(crate) fn ln<I: Interrupt>(self, int: &I) -> FResult<Exact<Self>> {
-		if self == 1.into() {
+		let x = self.expect_positive(int)?;
+		if x == 1.into() {
 			return Ok(Exact::new(0.into(), true));
 		}
-		Ok(Exact::new(
-			self.log2(int)?
-				.div(&Self::from_f64(std::f64::consts::LOG2_E, int)?, int)?,
-			false,
-		))
+		Ok(Exact::new(fixed::ln(&x, int)?, false))
 	}
 
 	pub(crate) fn log10<I: Interrupt>(self, int: &I) -> FResult<Self> {
-		self.log2(int)?
-			.div(&Self::from_f64(std::f64::consts::LOG2_10, int)?, int)
+		let x = self.expect_positive(int)?;
+		if let Some(k) = x.exact_log(10, int)? {
+			return Ok(k);
+		}
+		fixed::ln(&x, int)?.div(&fixed::ln(&10.into(), int)?, int)
 	}
 
 	fn apply_uint_op<I: Interrupt, R>(
@@ -1103,8 +1128,11 @@ impl BigRat {
 				true,
 			));
 		}
-		let (p, q) = (rhs.num.try_as_usize(int)?, rhs.den.try_as_usize(int)?);
-		Ok(Exact::new(Self::approx_pow(&self, p, q, int)?, false))
+		if rhs.num.bits() <= 32 && rhs.den.bits() <= 32 {
+			let (p, q) = (rhs.num.try_as_usize(int)?, rhs.den.try_as_usize(int)?);
+			return Ok(Exact::new(Self::approx_pow(&self, p, q, int)?, false));
+		}
+		Ok(Exact::new(fixed::pow(&self, &rhs, int)?, false))
 	}
 
 	fn approx_pow<I: Interrupt>(base: &Self, p: usize, q: usize, int: &I) -> FResult<Self> {
@@ -1140,10 +1168,7 @@ impl BigRat {
 		if self.num == 0.into() {
 			return Ok(Exact::new(Self::from(1), true));
 		}
-		Ok(Exact::new(
-			Self::from_f64(self.into_f64(int)?.exp(), int)?,
-			false,
-		))
+		Ok(Exact::new(fixed::exp(&self, int)?, false))
 	}
 
 	// the boolean indicates whether or not the result is exact

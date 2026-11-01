@@ -3209,7 +3209,7 @@ fn acos_0() {
 
 #[test]
 fn acos_3() {
-	test_eval_simple("acos 3", "approx. 0 + 1.762747174i");
+	test_eval("acos 3", "approx. 1.762747174i");
 }
 
 #[test]
@@ -3219,7 +3219,7 @@ fn acos_minus_3() {
 
 #[test]
 fn acos_one_point_zero_one() {
-	test_eval_simple("acos 1.01", "approx. 0 + 0.1413037695i");
+	test_eval("acos 1.01", "approx. 0.1413037695i");
 }
 
 #[test]
@@ -3389,7 +3389,7 @@ fn log2_minus_1() {
 
 #[test]
 fn sqrt_minus_two() {
-	test_eval_simple("sqrt(-2)", "approx. 0 + 1.4142135624i");
+	test_eval("sqrt(-2)", "approx. 1.4142135624i");
 }
 
 #[test]
@@ -6070,7 +6070,7 @@ fn uppercase_identifiers() {
 	test_eval("COS TAU", "1");
 	test_eval("LOG 1", "approx. 0");
 	test_eval("LOG10 1", "approx. 0");
-	test_eval("EXP 0", "approx. 1");
+	test_eval("EXP 0", "1");
 
 	expect_error("foo = 1; FOO", Some("unknown identifier 'FOO'"));
 }
@@ -6212,4 +6212,73 @@ fn decimal_separator_comma() {
 			.get_main_result(),
 		"1,69 AUD"
 	);
+}
+
+#[test]
+fn exp_ln_and_hyperbolic_functions_are_precise() {
+	test_eval_simple(
+		"e to 50 dp",
+		"approx. 2.71828182845904523536028747135266249775724709369996",
+	);
+	test_eval_simple(
+		"exp(-50) to 70 dp",
+		"approx. 0.000000000000000000000192874984796391778301734281652701257475283265123",
+	);
+	test_eval("exp 50", "approx. 5184705528587072464087.4533229335");
+	test_eval_simple(
+		"exp(10^-25) to 55 dp",
+		"approx. 1.000000000000000000000000100000000000000000000000005",
+	);
+	test_eval_simple(
+		"ln 3 to 50 dp",
+		"approx. 1.09861228866810969139524523692252570464749055782275",
+	);
+	test_eval_simple(
+		"ln(1 + 10^-30) to 65 dp",
+		"approx. 0.0000000000000000000000000000009999999999999999999999999999995",
+	);
+	test_eval_simple(
+		"ln(10^100) to 45 dp",
+		"approx. 230.258509299404568401799145468436420760110148863",
+	);
+	test_eval_simple(
+		"log2 10 to 50 dp",
+		"approx. 3.32192809488736234787031942948939017586483139302458",
+	);
+	test_eval_simple(
+		"log10 7 to 50 dp",
+		"approx. 0.84509804001425683071221625859263619348357239632397",
+	);
+	test_eval("log2 (1/1024)", "approx. -10");
+	test_eval("cosh 50", "approx. 2592352764293536232043.7266614667");
+	test_eval("sinh 60", "approx. 57100369490784214183147859.1572382815");
+	test_eval_simple(
+		"sinh(10^-20) to 65 dp",
+		"approx. 0.00000000000000000001000000000000000000000000000000000000000016667",
+	);
+	test_eval_simple(
+		"tanh 1 to 50 dp",
+		"approx. 0.76159415595576488811945828260479359041276859725794",
+	);
+	test_eval_simple(
+		"asinh(10^-15) to 50 dp",
+		"approx. 0.00000000000000099999999999999999999999999999983333",
+	);
+	test_eval_simple(
+		"acosh(1 + 10^-20) to 50 dp",
+		"approx. 0.00000000014142135623730950488005102129077204993623",
+	);
+	test_eval_simple(
+		"atanh 0.9 to 50 dp",
+		"approx. 1.47221948958322023000451371594392676861868963064956",
+	);
+	test_eval_simple(
+		"2^0.123456789012 to 50 dp",
+		"approx. 1.08934187035774403573523203271086206086029141643742",
+	);
+	test_eval_simple(
+		"e^2 to 50 dp",
+		"approx. 7.38905609893065022723042746057500781318031557055185",
+	);
+	expect_error("exp(10^9)", Some("value is too large"));
 }

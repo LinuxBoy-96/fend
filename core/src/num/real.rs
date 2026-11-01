@@ -245,6 +245,22 @@ impl Real {
 	}
 
 	pub(crate) fn atan2<I: Interrupt>(self, rhs: Self, int: &I) -> FResult<Self> {
+		let half_turns = if rhs.is_zero() {
+			match (self.is_pos(), self.is_neg()) {
+				(true, _) => Some(BigRat::from(1).div(&2.into(), int)?),
+				(_, true) => Some(-BigRat::from(1).div(&2.into(), int)?),
+				_ => Some(0.into()),
+			}
+		} else if self.is_zero() {
+			Some(if rhs.is_neg() { 1.into() } else { 0.into() })
+		} else {
+			None
+		};
+		if let Some(n) = half_turns {
+			return Ok(Self {
+				pattern: Pattern::Pi(n),
+			});
+		}
 		Ok(Self::from(
 			self.approximate(int)?.atan2(rhs.approximate(int)?, int)?,
 		))
