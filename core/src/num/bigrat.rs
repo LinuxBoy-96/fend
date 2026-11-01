@@ -1116,7 +1116,7 @@ impl BigRat {
 			};
 			return Self::from(1).div(&Self::approx_pow(&inverse, p, q, int)?, int);
 		}
-		let bits = ROOT_BITS + u64::from(usize::BITS - p.leading_zeros()) + 8;
+		let bits = ROOT_BITS + u64::from(p.bit_width()) + 8;
 		let shift = BigUint::from(bits);
 		let root = BigUint::fixed_root_n(&base.num, &base.den, q, bits, int)?;
 		let power = BigUint::fixed_pow(&root, p, &shift, int)?;
