@@ -924,6 +924,21 @@ impl BigRat {
 					}
 				}
 				Err(NextDigitErr::Terminated { round_up }) => {
+					if round_up && trailing_zeroes > 0 {
+						let sign = if let Some(actual_sign) = actual_sign {
+							actual_sign
+						} else {
+							let (sign, formatted_int) = print_integer_part(false)?;
+							trailing_digits.push_str(&formatted_int);
+							trailing_digits.push(decimal_separator.decimal_separator());
+							sign
+						};
+						for _ in 1..trailing_zeroes {
+							trailing_digits.push('0');
+						}
+						trailing_digits.push('1');
+						return Ok((sign, Exact::new(trailing_digits, false)));
+					}
 					let sign = if let Some(actual_sign) = actual_sign {
 						actual_sign
 					} else {

@@ -324,7 +324,7 @@ fn large_multiplication() {
 
 #[test]
 fn pi_times_pi() {
-	test_eval("pi * pi", "approx. 9.869604402");
+	test_eval("pi * pi", "approx. 9.8696044011");
 }
 
 #[test]
@@ -2715,6 +2715,16 @@ fn test_round() {
 	test_eval("round(2.5)", "3");
 	test_eval("round(-2.5)", "-3");
 	test_eval("round(-0.4)", "0");
+}
+
+#[test]
+fn rounding_up_at_a_zero_digit() {
+	test_eval("0.12309 to 4 dp", "approx. 0.1231");
+	test_eval("2.0000009 to 6 dp", "approx. 2.000001");
+	test_eval("-2.0000009 to 6 dp", "approx. -2.000001");
+	test_eval("0.0000009 to 6 dp", "approx. 0.000001");
+	test_eval("0.12309 to 4 sf", "approx. 0.1231");
+	test_eval("0.12301 to 4 dp", "approx. 0.123");
 }
 
 #[test]
